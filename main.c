@@ -76,7 +76,6 @@ void main_selection(int argc, char *argv[])
     if (c > 0 && c < 4)
       break;
   }
-  printf("\nOut_%d\n",c);
 }
 
 /* runtime input - selection 2
