@@ -5,8 +5,6 @@
 /* for use demonstration of 'extern' keyword */
 extern char *filename;
 
-char *getNcheck();
-
 int openfile()
 {
   FILE *prog;
@@ -26,12 +24,14 @@ int openfile()
     printf("\nError loading file. Please try again.\n");
     return (1);
   }
+  fgets(buf,256,prog);
+  lines++;
+  buf[strlen(buf)-1] = '\0';
+  strcpy(firstn->instruction,buf);
+
   //do
   //{
-    fgets(buf,256,prog);
-    lines++;
-    buf[strlen(buf)-1] = '\0';  // getting rid of \n
-    printf("==> %s<==%c-",buf,buf[strlen(buf)-1]);
+
 
 
   //}
@@ -40,3 +40,5 @@ int openfile()
   fclose(prog);
   return (0);
 }
+
+
