@@ -15,6 +15,7 @@ int main(int argc, char *argv[])
   printf("1_Hardcoded file\n");
   printf("2_Enter a file\n");
   printf("3_Command line parameter file\n");
+  printf("Or 4_Exit\n");
   printf("=> ");
 
   main_selection(argc, argv);
@@ -68,7 +69,9 @@ void main_selection(int argc, char *argv[])
       filename = argv[1]; // extra arguments after are ignored
       printf("3_Command line file \'%s\' selected.\n",filename);
       break;
-
+      case '4':
+      exit(0);
+      break;
       default:
       printf("\nInvalid answer. Enter 1,2 or 3.");
       c = 0;
