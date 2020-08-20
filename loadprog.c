@@ -36,6 +36,8 @@ void parseline(struct inst_line *nodei, struct node *noden);
 void free_nodes(struct node *first);
 int parse_inst(char *buf, int l);
 struct args parse_arg(char *buf, int l);
+// delete:
+void check(struct inst_line *nodei);
 
 
 int openfile()
@@ -55,8 +57,9 @@ int openfile()
   }
   firstn = loadfile(prog, lines);  // load lines into a the linked list
   fclose(prog);
-  firsti = parselines(firstn);   //
-
+  firsti = parselines(firstn);   // extract and restructure of data from lines
+  printf("Dream on!");
+  check(firsti);
   return (0);
 }
 
@@ -74,11 +77,11 @@ struct node *loadfile(FILE *prog,int *lines)
    * memory 'on demand' at each iteration of the loop retrieving the lines
    * of the file to process*/
   struct node *firstn,*currentn, *newn;
-  firstn = (struct node *)malloc(sizeof(struct node));
-  currentn = firstn;
-  buff = (char *)malloc(length * sizeof(char *));
 
-    do
+  firstn = (struct node *)malloc(sizeof(struct node));
+  newn = firstn;
+  buff = (char *)malloc(length * sizeof(char *));
+  do
   {
     /* using getline() as recommended by:
      * https://www.gnu.org/software/libc/manual/html_node/Line-Input.html#Line-Input
@@ -92,6 +95,7 @@ struct node *loadfile(FILE *prog,int *lines)
     if (line == -1)
     {
       err = errno;
+      // if error then exit
       if (err){
         printf("\nError while loading the source:");
         printf("\n==> %d\n",err);
@@ -100,10 +104,12 @@ struct node *loadfile(FILE *prog,int *lines)
         fclose(prog);
         exit (2);
       }
+      // no error, EOF (errno = 0)
       /* previously memory allocated for new node, in the previous iteration
        * of the loop, won't be used and is therefore freed */
-      free(newn);   // currentn = newn
+      free(newn);
       free(buff);
+      currentn->next = NULL;
       // skipping the rest of the loop
       loop = 1;
       continue;
@@ -111,20 +117,21 @@ struct node *loadfile(FILE *prog,int *lines)
     // skipping empty lines
     if (line == 1)
       continue;
+    printf("\n==>%s",buff);
     /* getting rid of '\n' at the end of the line/string */
     buff[line-1] = '\0';
+    currentn = newn;
     /* storing the buffer in the current node of the list
      * as well as its length
      * then allocating a new node for the next line */
     strcpy(currentn->instruction,buff);
-    currentn->length = line-1;
+    currentn->length = line;    // usefull for parsing the inst/args
     newn = (struct node *)malloc(sizeof(struct node));
     /* now a new node has been allocated memory,
      * the current node next pointer can be initialised to point to it,
      * and the index/current node can be moved to the newly memory
      * allocated node, for the next iteration of the loop */
     currentn->next = newn;
-    currentn = newn;
     (*lines)++;  // keeping track of the number of lines
   }
   while(!loop);
@@ -136,36 +143,39 @@ struct node *loadfile(FILE *prog,int *lines)
  * in order to reorganise them to put them in another linked list) */
 struct inst_line *parselines(struct node *firstn)
 {
-  struct node *indexn;
+  struct node *currentn;
   struct inst_line *firsti,*indexi, *newi;
   int loop = 0;
 
   /* setting up a new linked list with the instruction
    * and the optional arguments */
   firsti = (struct inst_line *)malloc(sizeof(struct inst_line));
-  indexi = firsti;
+  newi = firsti;
   /* looping through each line to parse for instructions and args */
   do
   {
-    indexn = firstn;
-    parseline(indexi, indexn);
+    indexi = newi;
+    currentn = firstn;
+    parseline(indexi, currentn);
     // checking for the end of the list (to end the loop)
-    if (indexn->next == NULL)
+    if (currentn->next == NULL)
     {
-      free(indexn);
+      printf("\nlast %s.%d\n",currentn->instruction,indexi->operand);
+      indexi->next = NULL;
+      free(currentn);
       loop = 1;
-      continue;
+      return (firsti); // instead of continue???
     }
     else    // if not the end then getting the next line to process
-      firstn = indexn->next;
-    free(indexn);     // the line for the source is not needed anymore
+      firstn = currentn->next;
+    free(currentn);     // the line for the source is not needed anymore
     /* allocating a new struct to store instruction & args from
      * the next iteration of the loop */
     newi = (struct inst_line *)malloc(sizeof(struct inst_line));
     indexi->next = newi;
-    indexi = newi;
   }
   while(!loop);
+
   return (firsti);
 }
 
@@ -173,7 +183,7 @@ void parseline(struct inst_line *nodei, struct node *noden)
 {
   char buff[10];    // buffer for instruction or argument
   char *line;       // line to be parsed
-  int length;
+  int length, flag = 0;
   int c, w=0, wc=0;
   enum operands op;
   struct args a1, a2;
@@ -182,19 +192,26 @@ void parseline(struct inst_line *nodei, struct node *noden)
 
 
   line = noden->instruction;
+  printf("\n%s<--",line);
   length = noden->length;
   // iterating through each character of the line
-  for (c=0;c<length-1;c++)
+  for (c=0;c<length;c++)
   {
-    if (line[c] == ' ')   // checking for separator
+    printf("\nc:%d<<-%c",c,line[c]);
+    /* checking for space separator and safeguarding against multi spaces
+     * as well as lines without args or space (think EXIT) */
+    if ((line[c] == ' ' || line[c] == '\0' || line[c] == '\n') && flag == 1)
     {
       switch (w)
       {
         case 0:
+        printf("\nline:_%s_buff:_%s_",line,buff);
         op = parse_inst(buff,c-1);
+        flag = 0;
         break;
         case 1:
         a1 = parse_arg(buff,c-wc-1);
+        flag = 0;
         break;
         case 2:
         a2 = parse_arg(buff,c-wc-1);
@@ -203,12 +220,22 @@ void parseline(struct inst_line *nodei, struct node *noden)
         // NOP
         break;
       };
-      w++;      // position of instruction/argument in the line
-      wc = c;   // # of characters to substract for next instruct/arg
+//      strcpy(buff,"         ");    // buffer reinit for next inst/arg
+      w++;          // position of instruction/argument in the line
+      wc = c + 1;   // # of characters to substract for next instruct/arg
     }
-    if (line[c] != ',')     // no need to store commas in the buffer
-      buff[c-wc] = line[c];
+    // no need to store commas or space in the buffer
+    if (line[c] != ',')
+    {
+      if (line[c] != ' ')
+      {
+        buff[c-wc] = line[c];
+        flag = 1;
+      }
+    }
+
   }
+//  printf("\nline:%s_op:%d",line,op);
   nodei->operand = op;
   nodei->op1 = a1;
   nodei->op2 = a2;
@@ -226,15 +253,16 @@ int parse_inst(char *buf, int l)
     case 'A': ret = ADD;
     break;
     case 'E': ret = EXIT;
+    printf("_EXIT_\n");
     break;
     case 'I': ret = INPUT;
     break;
     case 'J':
-      if (l == 4)         // jump
+      if (l == 3)         // jump (4 chras -1)
       {
         ret = JUMP;
       }
-      else if (l == 6)    // jumpeq
+      else if (l == 5)    // jumpeq (6 chars -1)
       {
          ret = JUMPEQ;
       }
@@ -267,7 +295,7 @@ struct args parse_arg(char *buf, int l)
 {
   struct args ret;
 
-  if (*buf == 'R' && !(*(buf + 1)<'0' || *(buf + 1)>'9'))
+  if ((*buf == 'R' || *buf == 'r') && !(*(buf + 1)<'0' || *(buf + 1)>'9'))
   {
     ret.op = *(buf + 1) - '0';
     ret.value = 0;
@@ -294,4 +322,69 @@ void free_nodes(struct node *first){
   }
   while(first->next != NULL);
   free(first);
+}
+
+
+
+
+
+
+void check(struct inst_line *nodei)
+{
+  struct inst_line *firsti;
+  int loop = 0;
+
+  do
+  {
+    switch (nodei->operand)
+    {
+      case 0:
+      printf("MOVE \n");
+      break;
+      case 1:
+      printf("STORE \n");
+      break;
+      case 2:
+      printf("LOAD \n");
+      break;
+      case 3:
+      printf("INPUT \n");
+      break;
+      case 4:
+      printf("OUTPUT\n");
+      break;
+      case 5:
+      printf("ADD \n");
+      break;
+      case 6:
+      printf("XOR \n");
+      break;
+      case 7:
+      printf("TEST \n");
+      break;
+      case 8:
+      printf("JUMPEQ \n");
+      break;
+      case 9:
+      printf("JUMPNEQ \n");
+      break;
+      case 10:
+      printf("JUMP \n");
+      break;
+      case 11:
+      printf("EXIT \n");
+      break;
+
+      default:
+      printf("\n==> %d",nodei->operand);
+      printf("\ndefault\n");
+    };
+    if (nodei->next == NULL)
+      return;
+    firsti = nodei->next;
+    nodei = firsti;
+
+  }
+  while(!loop);
+
 }
