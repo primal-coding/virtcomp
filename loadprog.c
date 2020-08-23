@@ -117,7 +117,7 @@ struct node *loadfile(FILE *prog,int *lines)
     // skipping empty lines
     if (line == 1)
       continue;
-    printf("\n==>%s",buff);
+    printf("\n==>%s - %d",buff,line);
     /* getting rid of '\n' at the end of the line/string */
     buff[line-1] = '\0';
     currentn = newn;
@@ -188,7 +188,9 @@ void parseline(struct inst_line *nodei, struct node *noden)
   enum operands op;
   struct args a1, a2;
   a1.op = NO_OP;
+  a1.value = 0;
   a2.op = NO_OP;
+  a2.value = 0;
 
 
   line = noden->instruction;
@@ -198,41 +200,41 @@ void parseline(struct inst_line *nodei, struct node *noden)
   for (c=0;c<length;c++)
   {
     printf("\nc:%d<<-%c",c,line[c]);
-    /* checking for space separator and safeguarding against multi spaces
+    /* checking for space and comma separator and safeguarding against multi spaces
      * as well as lines without args or space (think EXIT) */
-    if ((line[c] == ' ' || line[c] == '\0' || line[c] == '\n') && flag == 1)
+    if ((line[c] == ' ' || line[c] == '\0' || line[c] == ',') && flag == 1)
     {
       switch (w)
       {
         case 0:
-        printf("\nline:_%s_buff:_%s_",line,buff);
+        printf("\n0=line:<%s>buff:%s",line,buff);
         op = parse_inst(buff,c-1);
         flag = 0;
         break;
         case 1:
+        printf("\n1_ c=%d buff:%s",c,buff);
         a1 = parse_arg(buff,c-wc-1);
         flag = 0;
         break;
         case 2:
+        printf("\n2_ c=%d buff:%s",c,buff);
         a2 = parse_arg(buff,c-wc-1);
         break;
         default:
         // NOP
         break;
       };
-//      strcpy(buff,"         ");    // buffer reinit for next inst/arg
+      strcpy(buff,"---------");    // buffer reinit for next argument
       w++;          // position of instruction/argument in the line
-      wc = c + 1;   // # of characters to substract for next instruct/arg
     }
     // no need to store commas or space in the buffer
-    if (line[c] != ',')
+    if ((line[c] != ',') && (line[c] != ' '))
     {
-      if (line[c] != ' ')
-      {
         buff[c-wc] = line[c];
         flag = 1;
-      }
     }
+    else
+      wc = c + 1;   // # of characters to substract for next instruct/arg
 
   }
 //  printf("\nline:%s_op:%d",line,op);
@@ -295,19 +297,30 @@ struct args parse_arg(char *buf, int l)
 {
   struct args ret;
 
+  printf("\narg buf: %s\n",buf);
+
   if ((*buf == 'R' || *buf == 'r') && !(*(buf + 1)<'0' || *(buf + 1)>'9'))
   {
     ret.op = *(buf + 1) - '0';
     ret.value = 0;
     return(ret);
   }
-  if (*buf<'0' ||  *buf>'9')
+  if (*buf <'0' ||  *buf>'9')
   {
       printf("Parsing error - Invalid argument.");
       exit(4);
   }
   ret.op = CONST;
-  ret.value = *(buf + 1) - '0';
+  // test if the third character is a number, then test the second one
+  if (!(*(buf + 2)<'0' || *(buf + 2)>'9'))
+    ret.value = (*buf - '0')*100 + (*(buf+1) - '0')*10 + (*(buf+2) - '0');
+  else
+  {
+    if (!(*(buf + 1)<'0' || *(buf + 1)>'9'))
+      ret.value = (*buf - '0') * 10 + (*(buf + 1) - '0');
+    else
+      ret.value = *(buf) - '0';
+  }
   return(ret);
 }
 
@@ -339,46 +352,71 @@ void check(struct inst_line *nodei)
     switch (nodei->operand)
     {
       case 0:
-      printf("MOVE \n");
+      printf("\nMOVE ");
+      printf("1: %d - %d / 2: %d - %d\n",
+      nodei->op1.op,nodei->op1.value,nodei->op2.op,nodei->op2.value);
       break;
       case 1:
-      printf("STORE \n");
+      printf("STORE ");
+      printf("1: %d - %d / 2: %d - %d\n",
+      nodei->op1.op,nodei->op1.value,nodei->op2.op,nodei->op2.value);
       break;
       case 2:
-      printf("LOAD \n");
+      printf("LOAD ");
+      printf("1: %d - %d / 2: %d - %d\n",
+      nodei->op1.op,nodei->op1.value,nodei->op2.op,nodei->op2.value);
       break;
       case 3:
-      printf("INPUT \n");
+      printf("INPUT ");
+      printf("1: %d - %d / 2: %d - %d\n",
+      nodei->op1.op,nodei->op1.value,nodei->op2.op,nodei->op2.value);
       break;
       case 4:
-      printf("OUTPUT\n");
+      printf("OUTPUT ");
+      printf("1: %d - %d / 2: %d - %d\n",
+      nodei->op1.op,nodei->op1.value,nodei->op2.op,nodei->op2.value);
       break;
       case 5:
-      printf("ADD \n");
+      printf("ADD ");
+      printf("1: %d - %d / 2: %d - %d\n",
+      nodei->op1.op,nodei->op1.value,nodei->op2.op,nodei->op2.value);
       break;
       case 6:
-      printf("XOR \n");
+      printf("XOR ");
+      printf("1: %d - %d / 2: %d - %d\n",
+      nodei->op1.op,nodei->op1.value,nodei->op2.op,nodei->op2.value);
       break;
       case 7:
-      printf("TEST \n");
+      printf("TEST ");
+      printf("1: %d - %d / 2: %d - %d\n",
+      nodei->op1.op,nodei->op1.value,nodei->op2.op,nodei->op2.value);
       break;
       case 8:
-      printf("JUMPEQ \n");
+      printf("JUMPEQ ");
+      printf("1: %d - %d / 2: %d - %d\n",
+      nodei->op1.op,nodei->op1.value,nodei->op2.op,nodei->op2.value);
       break;
       case 9:
-      printf("JUMPNEQ \n");
+      printf("JUMPNEQ ");
+      printf("1: %d - %d / 2: %d - %d\n",
+      nodei->op1.op,nodei->op1.value,nodei->op2.op,nodei->op2.value);
       break;
       case 10:
-      printf("JUMP \n");
+      printf("JUMP ");
+      printf("1: %d - %d / 2: %d - %d\n",
+      nodei->op1.op,nodei->op1.value,nodei->op2.op,nodei->op2.value);
       break;
       case 11:
-      printf("EXIT \n");
+      printf("EXIT ");
+      printf("1: %d - %d / 2: %d - %d\n",
+      nodei->op1.op,nodei->op1.value,nodei->op2.op,nodei->op2.value);
       break;
 
       default:
       printf("\n==> %d",nodei->operand);
       printf("\ndefault\n");
     };
+
     if (nodei->next == NULL)
       return;
     firsti = nodei->next;
@@ -388,3 +426,4 @@ void check(struct inst_line *nodei)
   while(!loop);
 
 }
+

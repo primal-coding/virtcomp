@@ -73,7 +73,7 @@ void main_selection(int argc, char *argv[])
       exit(0);
       break;
       default:
-      printf("\nInvalid answer. Enter 1,2 or 3.");
+      printf("\nInvalid answer. Enter 1,2,3 or 4.");
       c = 0;
     }
     if (c > 0 && c < 4)
