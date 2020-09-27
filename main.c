@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "loadprog.c"
+#include "loadparse.c"
 
 char *filename;
 
